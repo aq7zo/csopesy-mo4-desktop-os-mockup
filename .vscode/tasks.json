@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } },
+  "tasks": [
+    { "label": "build", "type": "shell", "command": "tools\\vsdev.cmd make", "group": { "kind": "build", "isDefault": true }, "problemMatcher": "$msCompile" },
+    { "label": "build debug", "type": "shell", "command": "tools\\vsdev.cmd make debug", "problemMatcher": "$msCompile" },
+    { "label": "run", "type": "shell", "command": "tools\\vsdev.cmd make run", "problemMatcher": "$msCompile" },
+    { "label": "clean", "type": "shell", "command": "tools\\vsdev.cmd make clean", "problemMatcher": [] },
+    { "label": "rebuild", "type": "shell", "command": "tools\\vsdev.cmd make rebuild", "problemMatcher": "$msCompile" }
+  ]
+}

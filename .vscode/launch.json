@@ -1,0 +1,8 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "name": "Debug CSOPESY", "type": "cppvsdbg", "request": "launch",
+      "program": "${workspaceFolder}/build/debug/csopesy.exe", "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build debug", "console": "integratedTerminal" }
+  ]
+}
