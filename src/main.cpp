@@ -9,6 +9,14 @@ static void OnGlfwError(int code, const char* description) {
     std::fprintf(stderr, "GLFW error %d: %s\n", code, description);
 }
 
+static void DrawApps(csopesy::ShellState& shell) {
+    for (csopesy::AppWindow& app : shell.apps) {
+        if (!app.open) continue;
+        if (app.focusRequested) { ImGui::SetNextWindowFocus(); app.focusRequested = false; }
+        app.draw(&app.open);
+    }
+}
+
 int main() {
     glfwSetErrorCallback(OnGlfwError);
     if (!glfwInit()) return 1;
@@ -60,6 +68,8 @@ int main() {
         ImGui::NewFrame();
 
         csopesy::DrawDesktop(shell);  // layer 0: always first
+        DrawApps(shell);              // layer 1: app windows
+        csopesy::DrawTaskbar(shell);  // layer 2: forced on top
 
         ImGui::Render();
         int width = 0, height = 0;
