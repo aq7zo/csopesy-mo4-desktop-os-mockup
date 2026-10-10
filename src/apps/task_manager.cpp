@@ -119,8 +119,9 @@ void DrawProcessesTab() {
 }  // namespace
 
 void DrawTaskManager(bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(820, 500), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(120, 80), ImGuiCond_FirstUseEver);
+    const float u = ImGui::GetFontSize();  // font units: scales with DPI, stays clear of PWR
+    ImGui::SetNextWindowSize(ImVec2(u * 46.0f, u * 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(u * 7.0f, u * 4.5f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Task Manager", open)) { ImGui::End(); return; }
     if (ImGui::BeginTabBar("tabs")) {
         if (ImGui::BeginTabItem("Processes")) { DrawProcessesTab(); ImGui::EndTabItem(); }

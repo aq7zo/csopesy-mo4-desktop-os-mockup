@@ -1,5 +1,5 @@
 #include "shell.h"
-#include "imgui_internal.h"  // BringWindowToDisplayFront
+#include "imgui_internal.h"  // BeginViewportSideBar, BringWindowToDisplayFront
 
 namespace csopesy {
 namespace {
@@ -28,16 +28,16 @@ void TaskbarButton(AppWindow& app, float size) {
 }  // namespace
 
 void DrawTaskbar(ShellState& shell) {
-    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGuiViewport* vp = ImGui::GetMainViewport();
     const float height = TaskbarHeight();
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + vp->Size.y - height));
-    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, height));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(16, 16, 22, 235));
     constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing;
-    ImGui::Begin("##taskbar", nullptr, kFlags);
+    // Side bar also shrinks the viewport work area, so ImGui's window clamping keeps
+    // dragged app title bars above the taskbar instead of letting them sink beneath it.
+    ImGui::BeginViewportSideBar("##taskbar", vp, ImGuiDir_Down, height, kFlags);
     // Keep the taskbar above app windows, but under open modals (shutdown dialog).
     if (!ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());

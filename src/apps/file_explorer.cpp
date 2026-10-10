@@ -17,8 +17,9 @@ constexpr FileEntry kFiles[] = {
 }  // namespace
 
 void DrawFileExplorer(bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(680, 420), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(280, 170), ImGuiCond_FirstUseEver);
+    const float u = ImGui::GetFontSize();  // font units: scales with DPI
+    ImGui::SetNextWindowSize(ImVec2(u * 38.0f, u * 23.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(u * 16.0f, u * 9.5f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("File Explorer", open)) { ImGui::End(); return; }
     static int place = 2;  // "Documents"
 

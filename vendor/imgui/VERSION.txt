@@ -1,0 +1,2 @@
+Dear ImGui v1.92.9b (https://github.com/ocornut/imgui, tag v1.92.9b).
+Only the core sources and the GLFW/OpenGL3 backends used by the Makefile are vendored.

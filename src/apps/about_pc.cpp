@@ -16,8 +16,9 @@ constexpr Spec kSpecs[] = {
 }  // namespace
 
 void DrawAboutPc(bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(480, 380), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(160, 120), ImGuiCond_FirstUseEver);
+    const float u = ImGui::GetFontSize();  // font units: scales with DPI
+    ImGui::SetNextWindowSize(ImVec2(u * 27.0f, u * 21.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(u * 9.0f, u * 7.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("About This PC", open)) { ImGui::End(); return; }
     ImGui::TextUnformatted("CSOPESY OS");
     ImGui::TextDisabled("Desktop shell mockup - Dear ImGui %s", IMGUI_VERSION);
