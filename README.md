@@ -87,6 +87,23 @@ The workspace already includes the tasks and launch settings:
 - **F5** builds the debug version and starts it in the debugger.
 - **Terminal → Run Task** has `run`, `clean` and `rebuild`.
 
+### Building without make
+
+`build.cmd` does the same build with plain `cl` and `link`, so you don't need GNU make. Like `tools\vsdev.cmd`, it finds Visual Studio by itself. In PowerShell, type `.\build` instead of `build`.
+
+| Command | What it does |
+|---|---|
+| `build` | Release build → `build\release\csopesy.exe` |
+| `build run` | Release build, then launches it |
+| `build debug` | Debug build with a console window and symbols → `build\debug\csopesy.exe` |
+| `build debug run` | Debug build, then launches it |
+| `build clean` | Deletes the `build\` folder. Add other options to rebuild, for example `build clean run` |
+
+Like `make`, it only rebuilds when something in `src\` has changed since the last build. Dear ImGui is compiled once per config, so a rebuild takes a few seconds.
+
+> [!WARNING]
+> If the build succeeds but launching fails with **Access is denied**, your antivirus is blocking the newly built, unsigned `csopesy.exe`. Endpoint products with zero-trust application control, such as WatchGuard Endpoint Security, block each new build until their cloud scan clears it. In testing, that took between 1 and 20 minutes. Wait and try again. A cleared exe keeps working, and `build run` won't replace it unless `src\` changes. To avoid the wait, ask whoever manages the antivirus to allow the project's `build\` folder.
+
 ## Project structure
 
 ```
@@ -104,6 +121,7 @@ csopesy-mo4-desktop-os-mockup/
 ├─ tools/vsdev.cmd           # loads the MSVC environment, then runs a command
 ├─ docs/                     # implementation plan and requirements checklist
 ├─ .vscode/                  # build tasks, debugger launch config, IntelliSense
+├─ build.cmd                 # build without make: build [debug] [run] [clean]
 └─ Makefile
 ```
 
