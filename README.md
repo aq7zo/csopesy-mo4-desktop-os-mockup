@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
 ![Toolchain](https://img.shields.io/badge/MSVC-VS%202026-5C2D91?logo=visualstudio&logoColor=white)
 
-[Features](#features) • [Getting started](#getting-started) • [Make targets](#make-targets) • [Project structure](#project-structure)
+[Features](#features) • [Getting started](#getting-started) • [Make targets](#make-targets) • [Configuration](#configuration) • [Project structure](#project-structure)
 
 ![CSOPESY OS desktop with Task Manager, File Explorer and About This PC open](docs/screenshot.png)
 
@@ -20,14 +20,15 @@ Windows, macOS and Android all have a compositor that draws the desktop and mana
 
 ## Features
 
-- **Desktop:** a full-screen gradient wallpaper with a dot pattern, drawn first every frame using ImGui draw commands.
-- **Live clock:** the current time and date, refreshed every frame, pinned to the top-right corner.
-- **PWR button:** opens a shutdown dialog and is the *only* way to close the app. Alt+F4 and the Windows "Close window" command are ignored.
-- **Taskbar:** a fixed bottom panel with three custom-drawn icon buttons. Each open app gets a running indicator under its icon, and the taskbar always stays on top.
-- **About This PC:** a placeholder spec sheet with storage usage bars.
+- **Desktop:** a full-window gradient or solid wallpaper with an optional pattern (dots, grid, stripes or checker), drawn first every frame using ImGui draw commands.
+- **Live clock:** the current time and date, refreshed every frame, pinned to a corner (top-right by default), in 12- or 24-hour format.
+- **PWR button:** opens a shutdown dialog and is the *only* way to close the app. Alt+F4, the window's X button and the Windows "Close window" command are ignored.
+- **Taskbar:** a fixed panel at the bottom (or top) with three custom-drawn icon buttons. Each open app gets a running indicator under its icon, and the taskbar always stays on top.
+- **About This PC:** a placeholder spec sheet with storage usage bars, plus the config file that was loaded.
 - **File Explorer:** a navigation pane, a placeholder file list and a status bar.
-- **Task Manager:** modelled on the Windows one. It has a **Processes** tab, CPU and memory totals in the column headers, Apps and Background groups, and cells shaded yellow by load. All values are dummy data.
-- **High-DPI aware:** sizes are based on the font size, so the shell scales with Windows display scaling.
+- **Task Manager:** modelled on the Windows one. It has a **Processes** tab, CPU and memory totals in the column headers, and cells shaded yellow by load. **Apps** lists the apps that are actually open, and **Background processes** lists the dummy processes from `config.txt`. Click a header to sort; **End task** closes an app or hides a dummy process.
+- **Parameters without recompiling:** everything above that can vary is read from [`config.txt`](config.txt) at startup (see [Configuration](#configuration)), as the quiz rules require.
+- **High-DPI aware:** sizes are based on the font size, so the shell scales with Windows display scaling, and `ui-scale` can enlarge it further.
 
 ## Getting started
 
@@ -61,7 +62,7 @@ tools\vsdev.cmd make run
 > If you're already in a **Developer PowerShell for VS 2026** or **x64 Native Tools Command Prompt**, you can skip the wrapper and run `make` directly.
 
 > [!IMPORTANT]
-> The app opens full-screen and can only be closed with the red **PWR** button in the top-left corner. If it ever stops responding, end `csopesy.exe` from the real Windows Task Manager (Ctrl+Shift+Esc).
+> The app opens full-screen (unless `config.txt` says `fullscreen false`) and can only be closed with the red **PWR** button, top-left by default. If it ever stops responding, end `csopesy.exe` from the real Windows Task Manager (Ctrl+Shift+Esc).
 
 ## Make targets
 
@@ -81,11 +82,11 @@ Prefix each command with `tools\vsdev.cmd` unless you're already in a VS develop
 
 ### Building from VS Code
 
-The workspace already includes the tasks and launch settings:
+The workspace already includes the tasks and launch settings. The tasks call `build.cmd` (below), so they don't need make, and they skip the build when `src\` hasn't changed:
 
 - **Ctrl+Shift+B** runs a release build (`build` task).
-- **F5** builds the debug version and starts it in the debugger.
-- **Terminal → Run Task** has `run`, `clean` and `rebuild`.
+- **F5** builds if needed and starts the configuration chosen in Run and Debug. **Run CSOPESY (release)** has no console window, so use it for demos and quiz videos. **Debug CSOPESY** runs the debug build in the debugger.
+- **Terminal → Run Task** has `build debug`, `run`, `clean` and `rebuild`.
 
 ### Building without make
 
@@ -104,6 +105,27 @@ Like `make`, it only rebuilds when something in `src\` has changed since the las
 > [!WARNING]
 > If the build succeeds but launching fails with **Access is denied**, your antivirus is blocking the newly built, unsigned `csopesy.exe`. Endpoint products with zero-trust application control, such as WatchGuard Endpoint Security, block each new build until their cloud scan clears it. In testing, that took between 1 and 20 minutes. Wait and try again. A cleared exe keeps working, and `build run` won't replace it unless `src\` changes. To avoid the wait, ask whoever manages the antivirus to allow the project's `build\` folder.
 
+## Configuration
+
+The quiz rules say to change only the parameters and not recompile, so every value that can vary is read from [`config.txt`](config.txt) when the program starts. Edit a value, save, and run again. Each line is `key value`, and `#` starts a comment. You can also pass another file as the first argument: `csopesy.exe my-test.txt`.
+
+| Key | Values (default first) |
+|---|---|
+| `fullscreen` | `true` \| `false` (a resizable window) |
+| `window-width`, `window-height` | pixels (1280, 720), used when not full screen |
+| `ui-scale` | 0.5 to 3.0 (1.0), size of text and UI |
+| `wallpaper-style` | `gradient` \| `solid` |
+| `wallpaper-color`, `wallpaper-color-2` | `#RRGGBB`, `R G B` or a colour name (`#162446` navy, `#562662` purple) |
+| `wallpaper-direction` | `vertical` \| `horizontal` |
+| `wallpaper-pattern` | `dots` \| `none` \| `grid` \| `stripes` \| `checker` |
+| `clock-corner`, `power-corner` | `top-right`, `top-left`, `bottom-left`, `bottom-right` (clock top-right, PWR top-left) |
+| `clock-format` | `12` \| `24` |
+| `taskbar-position` | `bottom` \| `top` |
+| `total-memory-mb` | 16384, the base for the Task Manager Memory % |
+| `process "Name" cpu mem [disk] [net] [app\|background\|suspended]` | one Task Manager row; the first one replaces the built-in list |
+
+A mistake never crashes the program. A **Config warnings** window lists each bad line, and that setting keeps its default.
+
 ## Project structure
 
 ```
@@ -111,6 +133,7 @@ csopesy-mo4-desktop-os-mockup/
 ├─ src/
 │  ├─ main.cpp               # GLFW/OpenGL/ImGui setup and the compositor frame loop
 │  ├─ shell.h                # ShellState, AppWindow, Draw* declarations
+│  ├─ config.h / config.cpp  # reads config.txt into Config (quiz parameters)
 │  ├─ desktop.cpp            # wallpaper, clock, PWR button and shutdown dialog
 │  ├─ taskbar.cpp            # taskbar, icon buttons, running-app indicators
 │  └─ apps/
@@ -122,6 +145,8 @@ csopesy-mo4-desktop-os-mockup/
 ├─ docs/                     # implementation plan and requirements checklist
 ├─ .vscode/                  # build tasks, debugger launch config, IntelliSense
 ├─ build.cmd                 # build without make: build [debug] [run] [clean]
+├─ config.txt                # runtime parameters (edit these, not the code)
+├─ README.txt                # submission readme: members, how to run, entry point
 └─ Makefile
 ```
 

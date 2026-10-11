@@ -1,7 +1,9 @@
 #include "shell.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_internal.h"  // FindWindowByName
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 
@@ -10,29 +12,53 @@ static void OnGlfwError(int code, const char* description) {
 }
 
 static void DrawApps(csopesy::ShellState& shell) {
+    const float workTop = ImGui::GetMainViewport()->WorkPos.y;
     for (csopesy::AppWindow& app : shell.apps) {
         if (!app.open) continue;
         if (app.focusRequested) { ImGui::SetNextWindowFocus(); app.focusRequested = false; }
-        app.draw(&app.open);
+        app.draw(shell, &app.open);
+        // ImGui only keeps part of a window inside the work area, so a window dragged up could hide
+        // its title bar (and X) under a top taskbar. Push it back below the work-area top.
+        if (const ImGuiWindow* window = ImGui::FindWindowByName(app.title); window && window->Pos.y < workTop)
+            ImGui::SetWindowPos(app.title, ImVec2(window->Pos.x, workTop));
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
+    csopesy::ShellState shell;
+    shell.config = csopesy::LoadConfig(argc > 1 ? argv[1] : "config.txt");
+    for (const std::string& warning : shell.config.warnings) std::fprintf(stderr, "config: %s\n", warning.c_str());
+    shell.showConfigWarnings = !shell.config.warnings.empty();
+    const csopesy::Config& config = shell.config;
+
     glfwSetErrorCallback(OnGlfwError);
     if (!glfwInit()) return 1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);  // borderless: no title bar, no X button
 
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-    // +1 px height: a window exactly covering the monitor gets promoted to exclusive fullscreen,
-    // which freezes screen capture/recording/sharing. The extra row sits off-screen.
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height + 1, "CSOPESY OS", nullptr, nullptr);
-    if (!window) { glfwTerminate(); return 1; }
     int monitorX = 0, monitorY = 0;
     glfwGetMonitorPos(monitor, &monitorX, &monitorY);
-    glfwSetWindowPos(window, monitorX, monitorY);
+    GLFWwindow* window = nullptr;
+    if (config.fullscreen) {
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);  // borderless: no title bar, no X button
+        // +1 px height: a window exactly covering the monitor gets promoted to exclusive fullscreen,
+        // which freezes screen capture/recording/sharing. The extra row sits off-screen.
+        window = glfwCreateWindow(mode->width, mode->height + 1, "CSOPESY OS", nullptr, nullptr);
+        if (!window) { glfwTerminate(); return 1; }
+        glfwSetWindowPos(window, monitorX, monitorY);
+    } else {
+        // Normal resizable window; the close veto below still makes its X button do nothing.
+        const int width = std::min(config.windowWidth, mode->width);
+        const int height = std::min(config.windowHeight, mode->height);
+        window = glfwCreateWindow(width, height, "CSOPESY OS", nullptr, nullptr);
+        if (!window) { glfwTerminate(); return 1; }
+        int left = 0, top = 0, right = 0, bottom = 0;
+        glfwGetWindowFrameSize(window, &left, &top, &right, &bottom);
+        glfwSetWindowPos(window, monitorX + left + (mode->width - width - left - right) / 2,
+                         monitorY + std::max(top, top + (mode->height - height - top - bottom) / 2));
+    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     // Veto every OS close request (Alt+F4, taskbar "Close window"): PWR is the only exit.
@@ -45,13 +71,12 @@ int main() {
     constexpr const char* kUiFont = "C:/Windows/Fonts/segoeui.ttf";
     if (std::filesystem::exists(kUiFont)) io.Fonts->AddFontFromFileTTF(kUiFont, 18.0f);
     ImGui::StyleColorsDark();
-    const float dpiScale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor);
-    ImGui::GetStyle().ScaleAllSizes(dpiScale);
-    ImGui::GetStyle().FontScaleDpi = dpiScale;
+    const float uiScale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor) * config.uiScale;  // DPI x ui-scale
+    ImGui::GetStyle().ScaleAllSizes(uiScale);
+    ImGui::GetStyle().FontScaleDpi = uiScale;
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    csopesy::ShellState shell;
     // Some drivers (seen: NVIDIA Optimus) busy-wait in SwapBuffers or ignore the swap interval,
     // burning a full core; sleep-pace frames to the monitor refresh so the shell idles.
     const double frameBudget = 1.0 / (mode->refreshRate > 0 ? mode->refreshRate : 60);

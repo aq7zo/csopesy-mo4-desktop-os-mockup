@@ -16,10 +16,8 @@ constexpr FileEntry kFiles[] = {
 
 }  // namespace
 
-void DrawFileExplorer(bool* open) {
-    const float u = ImGui::GetFontSize();  // font units: scales with DPI
-    ImGui::SetNextWindowSize(ImVec2(u * 38.0f, u * 23.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(u * 16.0f, u * 9.5f), ImGuiCond_FirstUseEver);
+void DrawFileExplorer(ShellState& /*shell*/, bool* open) {
+    SetNextAppWindowRect(16.0f, 9.5f, 38.0f, 23.0f);  // font units: scales with DPI
     if (!ImGui::Begin("File Explorer", open)) { ImGui::End(); return; }
     static int place = 2;  // "Documents"
 

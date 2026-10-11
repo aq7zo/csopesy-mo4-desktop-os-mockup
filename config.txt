@@ -1,0 +1,43 @@
+# CSOPESY OS parameters. Edit a value, save, then run the program again; no recompiling needed.
+# Format: key value     (# starts a comment; put names with spaces in "quotes")
+# Colours: #RRGGBB, R G B (0-255), or a name: black white gray silver red maroon orange yellow gold
+#          olive lime green teal cyan skyblue blue navy indigo purple violet magenta pink brown
+# Mistakes don't crash anything: a "Config warnings" window lists them and the default is used.
+
+# --- Window ---
+fullscreen           true         # true = borderless full screen, false = normal resizable window
+window-width         1280         # window size in pixels when fullscreen is false
+window-height        720
+ui-scale             1.0          # text and UI size multiplier, 0.5 to 3.0
+
+# --- Desktop ---
+wallpaper-style      gradient     # gradient or solid
+wallpaper-color      #162446      # solid colour, or the gradient's start colour (navy)
+wallpaper-color-2    #562662      # the gradient's end colour (purple)
+wallpaper-direction  vertical     # vertical (top to bottom) or horizontal (left to right)
+wallpaper-pattern    dots         # none, dots, grid, stripes or checker
+clock-corner         top-right    # top-left, top-right, bottom-left or bottom-right
+clock-format         12           # 12 or 24 hour
+power-corner         top-left     # PWR button corner (same choices as clock-corner)
+
+# --- Taskbar ---
+taskbar-position     bottom       # top or bottom
+
+# --- Task Manager (dummy values) ---
+total-memory-mb      16384        # installed memory; the Memory header shows usage as a % of this
+# process "Name"  CPU-%  Memory-MB  [Disk-MB/s]  [Network-Mbps]  [app | background | suspended]
+# The first process line replaces the built-in list. Rows named like a taskbar app (Task Manager,
+# File Explorer, About This PC) show only while that window is open; "app" rows always show under
+# Apps; all other rows are background processes.
+process "CSOPESY Shell"                   3.2  182.4  0.1  0.0  app
+process "Task Manager"                    1.1   41.7
+process "File Explorer"                   0.4   63.2  0.2
+process "About This PC"                   0.0   12.8
+process "Desktop Window Manager"          2.6   96.5
+process "Antimalware Service Executable"  1.8  211.9  0.4
+process "Service Host: Local System"      0.7   54.1  0.1  0.1
+process "Search Indexer"                  0.2   27.6  0.3
+process "Audio Device Graph Isolation"    0.3   11.2
+process "Runtime Broker"                  0.0    8.3
+process "Spooler SubSystem App"           0.0    6.9
+process "COM Surrogate"                   0.0    3.4  0.0  0.0  suspended

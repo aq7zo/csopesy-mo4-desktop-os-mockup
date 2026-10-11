@@ -22,6 +22,12 @@ CXXFLAGS := /nologo /std:c++20 /EHsc /permissive- /utf-8 /MD /FC /Isrc \
             /external:W0 /external:I$(IMGUI) /external:I$(IMGUI)/backends /external:I$(GLFW)/include
 LDFLAGS  := /nologo /LIBPATH:$(GLFW)/lib-vc2022
 LDLIBS   := glfw3.lib opengl32.lib gdi32.lib user32.lib shell32.lib
+# MSVC's linker by full path: Git's usr\bin also has a "link" that can come first on PATH (Git Bash).
+ifdef VCToolsInstallDir
+  LINK_EXE := "$(VCToolsInstallDir)bin\Hostx64\x64\link.exe"
+else
+  LINK_EXE := link
+endif
 
 ifeq ($(CONFIG),debug)
   CXXFLAGS += /Od /Z7
@@ -55,7 +61,7 @@ rebuild: clean
 	$(MAKE) all
 
 $(TARGET): $(APP_OBJ) $(IMGUI_OBJ)
-	link $(LDFLAGS) /OUT:$@ $^ $(LDLIBS)
+	$(LINK_EXE) $(LDFLAGS) /OUT:$@ $^ $(LDLIBS)
 
 # ponytail: every app object depends on every src header; fine at this size.
 $(APP_OBJ): $(OUT)/obj/%.obj: %.cpp $(APP_HDR)

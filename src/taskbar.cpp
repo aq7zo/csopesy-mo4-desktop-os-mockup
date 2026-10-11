@@ -36,8 +36,9 @@ void DrawTaskbar(ShellState& shell) {
     constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing;
     // Side bar also shrinks the viewport work area, so ImGui's window clamping keeps
-    // dragged app title bars above the taskbar instead of letting them sink beneath it.
-    ImGui::BeginViewportSideBar("##taskbar", vp, ImGuiDir_Down, height, kFlags);
+    // dragged app title bars above a bottom taskbar (DrawApps handles a top one).
+    const ImGuiDir edge = shell.config.taskbarTop ? ImGuiDir_Up : ImGuiDir_Down;
+    ImGui::BeginViewportSideBar("##taskbar", vp, edge, height, kFlags);
     // Keep the taskbar above app windows, but under open modals (shutdown dialog).
     if (!ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());

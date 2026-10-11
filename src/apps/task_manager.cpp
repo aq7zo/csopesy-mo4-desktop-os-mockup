@@ -1,37 +1,94 @@
 #include "shell.h"
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <initializer_list>
+#include <string_view>
+#include <vector>
 
 namespace csopesy {
 namespace {
 
-struct Process {
+constexpr int kColumns = 6;
+constexpr int kNameColumn = 0;
+constexpr int kStatusColumn = 1;
+
+// One visible row. Taskbar apps appear only while their window is open, like real apps.
+struct Row {
     const char* name;
-    const char* status;
-    float cpuPct;
-    float memMb;
-    float diskMbs;
-    float netMbps;
-    bool isApp;
+    const ProcessInfo* values;  // dummy values (spec: "Use dummy values on the Task Manager")
+    int appIndex;               // index into ShellState::apps, or -1
+    int processIndex;           // index into Config::processes, or -1
 };
 
-// Dummy values only (spec: "Use dummy values on the Task Manager").
-constexpr Process kProcesses[] = {
-    {"CSOPESY Shell", "", 3.2f, 182.4f, 0.1f, 0.0f, true},
-    {"Task Manager", "", 1.1f, 41.7f, 0.0f, 0.0f, true},
-    {"File Explorer", "", 0.4f, 63.2f, 0.2f, 0.0f, true},
-    {"About This PC", "", 0.0f, 12.8f, 0.0f, 0.0f, true},
-    {"Desktop Window Manager", "", 2.6f, 96.5f, 0.0f, 0.0f, false},
-    {"Antimalware Service Executable", "", 1.8f, 211.9f, 0.4f, 0.0f, false},
-    {"Service Host: Local System", "", 0.7f, 54.1f, 0.1f, 0.1f, false},
-    {"Search Indexer", "", 0.2f, 27.6f, 0.3f, 0.0f, false},
-    {"Audio Device Graph Isolation", "", 0.3f, 11.2f, 0.0f, 0.0f, false},
-    {"Runtime Broker", "", 0.0f, 8.3f, 0.0f, 0.0f, false},
-    {"Spooler SubSystem App", "", 0.0f, 6.9f, 0.0f, 0.0f, false},
-    {"COM Surrogate", "Suspended", 0.0f, 3.4f, 0.0f, 0.0f, false},
-};
-constexpr float kTotalMemMb = 16384.0f;
-constexpr int kColumns = 6;
+struct Selection { int appIndex = -1; int processIndex = -1; };
+
+bool Matches(const Row& row, const Selection& selection) {
+    return (row.appIndex >= 0 && row.appIndex == selection.appIndex) ||
+           (row.processIndex >= 0 && row.processIndex == selection.processIndex);
+}
+
+bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+        return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y));
+    });
+}
+
+bool IsShellApp(const ShellState& shell, std::string_view name) {
+    for (const AppWindow& app : shell.apps)
+        if (EqualsIgnoreCase(app.title, name)) return true;
+    return false;
+}
+
+const ProcessInfo* FindProcess(const std::vector<ProcessInfo>& list, std::string_view name) {
+    for (const ProcessInfo& process : list)
+        if (EqualsIgnoreCase(process.name, name)) return &process;
+    return nullptr;
+}
+
+// A taskbar app's dummy values: its config.txt row, else the built-in default row, else zeros.
+const ProcessInfo& AppValues(const Config& config, const char* title) {
+    static const std::vector<ProcessInfo> kDefaults = DefaultProcesses();
+    static const ProcessInfo kZero;
+    if (const ProcessInfo* process = FindProcess(config.processes, title)) return *process;
+    if (const ProcessInfo* process = FindProcess(kDefaults, title)) return *process;
+    return kZero;
+}
+
+void CollectRows(const ShellState& shell, std::vector<Row>& apps, std::vector<Row>& background) {
+    for (int i = 0; i < static_cast<int>(IM_ARRAYSIZE(shell.apps)); ++i)
+        if (shell.apps[i].open) apps.push_back({shell.apps[i].title, &AppValues(shell.config, shell.apps[i].title), i, -1});
+    const std::vector<ProcessInfo>& processes = shell.config.processes;
+    for (int i = 0; i < static_cast<int>(processes.size()); ++i) {
+        if (shell.endedProcesses[i] || IsShellApp(shell, processes[i].name)) continue;
+        (processes[i].isApp ? apps : background).push_back({processes[i].name.c_str(), &processes[i], -1, i});
+    }
+}
+
+float Metric(const ProcessInfo& values, int column) {
+    const float metrics[kColumns] = {0.0f, 0.0f, values.cpuPct, values.memMb, values.diskMbs, values.netMbps};
+    return metrics[column];
+}
+
+bool RowLess(const Row& a, const Row& b, int column) {
+    if (column == kNameColumn) {
+        return std::lexicographical_compare(a.name, a.name + std::strlen(a.name), b.name, b.name + std::strlen(b.name),
+            [](char x, char y) { return std::tolower(static_cast<unsigned char>(x)) < std::tolower(static_cast<unsigned char>(y)); });
+    }
+    if (column == kStatusColumn) return a.values->status < b.values->status;
+    return Metric(*a.values, column) < Metric(*b.values, column);
+}
+
+// Sorts within a group, like Windows. No spec (third header click) keeps config.txt order.
+void SortRows(std::vector<Row>& rows, const ImGuiTableSortSpecs* specs) {
+    if (specs == nullptr || specs->SpecsCount == 0) return;
+    const int column = specs->Specs[0].ColumnIndex;
+    const bool descending = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
+    std::stable_sort(rows.begin(), rows.end(), [&](const Row& a, const Row& b) {
+        return descending ? RowLess(b, a, column) : RowLess(a, b, column);
+    });
+}
 
 void TextRightAligned(const char* text) {
     const float avail = ImGui::GetContentRegionAvail().x;
@@ -54,21 +111,22 @@ void MetricCell(int column, float load, const char* fmt, float value) {
     TextRightAligned(text);
 }
 
-void DrawGroup(const char* label, bool apps) {
-    int count = 0;
-    for (const Process& p : kProcesses) count += (p.isApp == apps);
+void DrawGroup(const char* label, const std::vector<Row>& rows, Selection& selection) {
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
-    ImGui::TextColored(ImVec4(0.55f, 0.75f, 1.0f, 1.0f), "%s (%d)", label, count);
-    for (const Process& p : kProcesses) {
-        if (p.isApp != apps) continue;
+    ImGui::TextColored(ImVec4(0.55f, 0.75f, 1.0f, 1.0f), "%s (%d)", label, static_cast<int>(rows.size()));
+    for (const Row& row : rows) {
+        const ProcessInfo& p = *row.values;
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
+        ImGui::PushID(row.appIndex >= 0 ? row.appIndex : 1000 + row.processIndex);
         ImGui::Indent();
-        ImGui::TextUnformatted(p.name);
+        if (ImGui::Selectable(row.name, Matches(row, selection), ImGuiSelectableFlags_SpanAllColumns))
+            selection = {row.appIndex, row.processIndex};
         ImGui::Unindent();
+        ImGui::PopID();
         ImGui::TableSetColumnIndex(1);
-        ImGui::TextDisabled("%s", p.status);
+        ImGui::TextDisabled("%s", p.status.c_str());
         MetricCell(2, p.cpuPct / 10.0f, "%.1f%%", p.cpuPct);
         MetricCell(3, p.memMb / 512.0f, "%.1f MB", p.memMb);
         MetricCell(4, p.diskMbs, "%.1f MB/s", p.diskMbs);
@@ -76,55 +134,74 @@ void DrawGroup(const char* label, bool apps) {
     }
 }
 
-void DrawProcessesTab() {
-    float cpuTotal = 0.0f, memTotal = 0.0f;
-    for (const Process& p : kProcesses) { cpuTotal += p.cpuPct; memTotal += p.memMb; }
+void DrawProcessesTab(ShellState& shell) {
+    if (shell.endedProcesses.size() != shell.config.processes.size())
+        shell.endedProcesses.assign(shell.config.processes.size(), false);
+    std::vector<Row> apps, background;
+    CollectRows(shell, apps, background);
 
-    // Windows-style headers: total on top, metric name below.
+    // Windows-style headers: total of the listed rows on top, metric name below.
+    float cpuTotal = 0.0f, memTotal = 0.0f;
+    for (const std::vector<Row>* group : {&apps, &background})
+        for (const Row& row : *group) { cpuTotal += row.values->cpuPct; memTotal += row.values->memMb; }
     char cpuHeader[32], memHeader[32];
-    std::snprintf(cpuHeader, sizeof cpuHeader, "%.0f%%\nCPU", cpuTotal);
-    std::snprintf(memHeader, sizeof memHeader, "%.0f%%\nMemory", memTotal / kTotalMemMb * 100.0f);
+    std::snprintf(cpuHeader, sizeof cpuHeader, "%.0f%%\nCPU", std::min(cpuTotal, 100.0f));
+    std::snprintf(memHeader, sizeof memHeader, "%.0f%%\nMemory", memTotal / shell.config.totalMemoryMb * 100.0f);
     const char* headers[kColumns] = {"\nName", "\nStatus", cpuHeader, memHeader, "0%\nDisk", "0%\nNetwork"};
 
+    static Selection selection;
     const float footer = ImGui::GetFrameHeightWithSpacing();
     constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV |
         ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY |
-        ImGuiTableFlags_SizingStretchProp;
+        ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortTristate;
     if (ImGui::BeginTable("processes", kColumns, kFlags, ImVec2(0, -footer))) {
+        constexpr ImGuiTableColumnFlags kMetric = ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_PreferSortDescending;
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 3.0f);
         ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("CPU", ImGuiTableColumnFlags_WidthStretch, 0.9f);
-        ImGui::TableSetupColumn("Memory", ImGuiTableColumnFlags_WidthStretch, 1.1f);
-        ImGui::TableSetupColumn("Disk", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Network", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("CPU", kMetric, 0.9f);
+        ImGui::TableSetupColumn("Memory", kMetric, 1.1f);
+        ImGui::TableSetupColumn("Disk", kMetric, 1.0f);
+        ImGui::TableSetupColumn("Network", kMetric, 1.0f);
         ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
         for (int c = 0; c < kColumns; ++c) {
             ImGui::TableSetColumnIndex(c);
-            ImGui::TableHeader(headers[c]);
+            ImGui::TableHeader(headers[c]);  // click to sort
         }
-        DrawGroup("Apps", true);
-        DrawGroup("Background processes", false);
+        const ImGuiTableSortSpecs* specs = ImGui::TableGetSortSpecs();
+        SortRows(apps, specs);
+        SortRows(background, specs);
+        DrawGroup("Apps", apps, selection);
+        DrawGroup("Background processes", background, selection);
         ImGui::EndTable();
     }
+
+    // A selection only counts while its row is still listed (e.g. the app wasn't closed meanwhile).
+    bool hasSelection = false;
+    for (const std::vector<Row>* group : {&apps, &background})
+        for (const Row& row : *group) hasSelection = hasSelection || Matches(row, selection);
 
     const ImGuiStyle& style = ImGui::GetStyle();
     const float buttonW = ImGui::CalcTextSize("End task").x + style.FramePadding.x * 2.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonW);
-    ImGui::BeginDisabled();  // mockup: no real processes to end
-    ImGui::Button("End task");
+    ImGui::BeginDisabled(!hasSelection);
+    // Ending a taskbar app closes its window; ending a dummy row hides it until the next launch.
+    // Never exits the shell: PWR stays the only way out.
+    if (ImGui::Button("End task")) {
+        if (selection.appIndex >= 0) shell.apps[selection.appIndex].open = false;
+        else shell.endedProcesses[selection.processIndex] = true;
+        selection = {};
+    }
     ImGui::EndDisabled();
 }
 
 }  // namespace
 
-void DrawTaskManager(bool* open) {
-    const float u = ImGui::GetFontSize();  // font units: scales with DPI, stays clear of PWR
-    ImGui::SetNextWindowSize(ImVec2(u * 46.0f, u * 28.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(u * 7.0f, u * 4.5f), ImGuiCond_FirstUseEver);
+void DrawTaskManager(ShellState& shell, bool* open) {
+    SetNextAppWindowRect(7.0f, 4.5f, 46.0f, 28.0f);  // font units: scales with DPI, stays clear of PWR
     if (!ImGui::Begin("Task Manager", open)) { ImGui::End(); return; }
     if (ImGui::BeginTabBar("tabs")) {
-        if (ImGui::BeginTabItem("Processes")) { DrawProcessesTab(); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("Processes")) { DrawProcessesTab(shell); ImGui::EndTabItem(); }
         for (const char* tab : {"Performance", "App history", "Startup apps", "Users", "Details", "Services"}) {
             if (ImGui::BeginTabItem(tab)) {
                 ImGui::TextDisabled("%s is not available in this mockup.", tab);
