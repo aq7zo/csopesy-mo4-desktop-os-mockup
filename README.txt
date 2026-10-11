@@ -48,7 +48,8 @@ Parameters (config.txt)
   config.txt in this folder holds every parameter. Edit a value, save, and run
   again. No recompiling. Each line is "key value", and # starts a comment.
   If a value is wrong, a "Config warnings" window names the line, and that
-  setting keeps its default.
+  setting keeps its default. If a setting appears twice, the last valid line
+  is used, and the window says so.
 
   Key                  Values (default first)
   fullscreen           true | false
@@ -56,8 +57,8 @@ Parameters (config.txt)
   window-height        pixels (720)
   ui-scale             0.5 to 3.0 (1.0), size of text and UI
   wallpaper-style      gradient | solid
-  wallpaper-color      #RRGGBB, R G B, or a colour name (#162446, navy)
-  wallpaper-color-2    gradient end colour (#562662, purple)
+  wallpaper-color      #RRGGBB, R G B, or a colour name (default #162446)
+  wallpaper-color-2    gradient end colour (default #562662)
   wallpaper-direction  vertical | horizontal
   wallpaper-pattern    dots | none | grid | stripes | checker
   clock-corner         top-right | top-left | bottom-left | bottom-right
@@ -68,6 +69,7 @@ Parameters (config.txt)
   process "Name" CPU% Memory-MB [Disk-MB/s] [Network-Mbps] [app|background|suspended]
                        one Task Manager row (dummy values); repeat for more rows.
                        The first process line replaces the built-in list.
+                       An open taskbar app with no process line shows 0.
 
   Example: solid red wallpaper, 24-hour clock bottom-left, taskbar on top:
     wallpaper-style   solid

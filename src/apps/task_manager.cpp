@@ -47,13 +47,12 @@ const ProcessInfo* FindProcess(const std::vector<ProcessInfo>& list, std::string
     return nullptr;
 }
 
-// A taskbar app's dummy values: its config.txt row, else the built-in default row, else zeros.
+// A taskbar app's dummy values: its process row, else zeros, so the header totals equal exactly the
+// rows config.txt lists. (The built-in list has rows for all three apps.)
 const ProcessInfo& AppValues(const Config& config, const char* title) {
-    static const std::vector<ProcessInfo> kDefaults = DefaultProcesses();
     static const ProcessInfo kZero;
-    if (const ProcessInfo* process = FindProcess(config.processes, title)) return *process;
-    if (const ProcessInfo* process = FindProcess(kDefaults, title)) return *process;
-    return kZero;
+    const ProcessInfo* process = FindProcess(config.processes, title);
+    return process != nullptr ? *process : kZero;
 }
 
 void CollectRows(const ShellState& shell, std::vector<Row>& apps, std::vector<Row>& background) {
@@ -146,7 +145,7 @@ void DrawProcessesTab(ShellState& shell) {
         for (const Row& row : *group) { cpuTotal += row.values->cpuPct; memTotal += row.values->memMb; }
     char cpuHeader[32], memHeader[32];
     std::snprintf(cpuHeader, sizeof cpuHeader, "%.0f%%\nCPU", std::min(cpuTotal, 100.0f));
-    std::snprintf(memHeader, sizeof memHeader, "%.0f%%\nMemory", memTotal / shell.config.totalMemoryMb * 100.0f);
+    std::snprintf(memHeader, sizeof memHeader, "%.0f%%\nMemory", std::min(memTotal / shell.config.totalMemoryMb * 100.0f, 100.0f));
     const char* headers[kColumns] = {"\nName", "\nStatus", cpuHeader, memHeader, "0%\nDisk", "0%\nNetwork"};
 
     static Selection selection;

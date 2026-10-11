@@ -115,16 +115,16 @@ The quiz rules say to change only the parameters and not recompile, so every val
 | `window-width`, `window-height` | pixels (1280, 720), used when not full screen |
 | `ui-scale` | 0.5 to 3.0 (1.0), size of text and UI |
 | `wallpaper-style` | `gradient` \| `solid` |
-| `wallpaper-color`, `wallpaper-color-2` | `#RRGGBB`, `R G B` or a colour name (`#162446` navy, `#562662` purple) |
+| `wallpaper-color`, `wallpaper-color-2` | `#RRGGBB`, `R G B` or a colour name (defaults `#162446` and `#562662`, a dark navy → purple) |
 | `wallpaper-direction` | `vertical` \| `horizontal` |
 | `wallpaper-pattern` | `dots` \| `none` \| `grid` \| `stripes` \| `checker` |
 | `clock-corner`, `power-corner` | `top-right`, `top-left`, `bottom-left`, `bottom-right` (clock top-right, PWR top-left) |
 | `clock-format` | `12` \| `24` |
 | `taskbar-position` | `bottom` \| `top` |
 | `total-memory-mb` | 16384, the base for the Task Manager Memory % |
-| `process "Name" cpu mem [disk] [net] [app\|background\|suspended]` | one Task Manager row; the first one replaces the built-in list |
+| `process "Name" cpu mem [disk] [net] [app\|background\|suspended]` | one Task Manager row; the first one replaces the built-in list, and an open taskbar app with no row shows 0 |
 
-A mistake never crashes the program. A **Config warnings** window lists each bad line, and that setting keeps its default.
+A mistake never crashes the program. A **Config warnings** window lists each bad line, and that setting keeps its default. If a setting appears twice, the last valid line is used and the window says so.
 
 ## Project structure
 

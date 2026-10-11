@@ -3,8 +3,11 @@
 #include <cctype>
 #include <charconv>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <map>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -53,14 +56,16 @@ bool IsHexColor(std::string_view token) { return token.size() == 7 && IsHexToken
 // Splits on whitespace, '=' and ','; "double quoted" text stays one token. A token starting with
 // '#' begins a comment, unless it is a #RRGGBB value or a hex value right after the key (so a
 // mistyped colour is reported instead of silently read as a comment).
-std::vector<std::string> Tokenize(std::string_view line) {
+std::vector<std::string> Tokenize(std::string_view line, bool& unclosedQuote) {
     std::vector<std::string> tokens;
+    unclosedQuote = false;
     size_t i = 0;
     while (i < line.size()) {
         const char c = line[i];
         if (std::isspace(static_cast<unsigned char>(c)) || c == '=' || c == ',') { ++i; continue; }
         if (c == '"') {
             const size_t end = line.find('"', i + 1);
+            unclosedQuote = end == std::string_view::npos;
             tokens.emplace_back(line.substr(i + 1, end == std::string_view::npos ? std::string_view::npos : end - i - 1));
             i = end == std::string_view::npos ? line.size() : end + 1;
             continue;
@@ -143,6 +148,12 @@ std::string ListChoices(Choices<T> choices) {  // "a, b or c"
     return out;
 }
 
+// Settings that take one value; repeating one is reported (process lines repeat by design).
+constexpr std::string_view kSettingKeys[] = {
+    "fullscreen", "window-width", "window-height", "ui-scale", "wallpaper-style", "wallpaper-color",
+    "wallpaper-color-2", "wallpaper-direction", "wallpaper-pattern", "clock-corner", "clock-format",
+    "power-corner", "taskbar-position", "total-memory-mb"};
+
 const Choices<Corner> kCorners = {{"top-left", Corner::TopLeft}, {"top-right", Corner::TopRight},
                                   {"bottom-left", Corner::BottomLeft}, {"bottom-right", Corner::BottomRight}};
 
@@ -158,8 +169,12 @@ std::optional<ProcessInfo> ParseProcess(const std::vector<std::string>& args, st
         else if (word == "background") process.isApp = false;
         else if (word == "suspended") process.status = "Suspended";
         else if (word == "%" || word == "mb" || word == "mb/s" || word == "mbps") continue;
-        else if (const std::optional<float> v = ParseFloat(args[i]); v && *v >= 0.0f && count < 4) *metrics[count++] = *v;
-        else {
+        else if (const std::optional<float> v = ParseFloat(args[i])) {
+            if (*v < 0.0f) error = "process \"" + process.name + "\": numbers can't be negative (got \"" + args[i] + "\")";
+            else if (count == 4) error = "process \"" + process.name + "\": at most 4 numbers (CPU %, memory MB, disk MB/s, network Mbps); extra \"" + args[i] + "\"";
+            else { *metrics[count++] = *v; continue; }
+            return std::nullopt;
+        } else {
             error = "process \"" + process.name + "\": unexpected \"" + args[i] + "\" (put names with spaces in \"quotes\")";
             return std::nullopt;
         }
@@ -168,7 +183,6 @@ std::optional<ProcessInfo> ParseProcess(const std::vector<std::string>& args, st
         error = "process needs a name, CPU % and memory MB, e.g.  process \"Chrome\" 12.5 300";
         return std::nullopt;
     }
-    process.cpuPct = std::min(process.cpuPct, 100.0f);
     return process;
 }
 
@@ -209,10 +223,12 @@ Config LoadConfig(const char* path) {
     config.sourcePath = Utf8(file);
 
     bool customProcesses = false;
+    std::map<std::string, int> settingLines;  // key -> line that last set it
     std::string line;
     for (int lineNumber = 1; std::getline(in, line); ++lineNumber) {
         if (lineNumber == 1 && line.starts_with("\xEF\xBB\xBF")) line.erase(0, 3);  // Notepad's UTF-8 BOM
-        std::vector<std::string> tokens = Tokenize(line);
+        bool unclosedQuote = false;
+        std::vector<std::string> tokens = Tokenize(line, unclosedQuote);
         if (tokens.empty()) continue;
         const std::string key = Lower(tokens[0]);
         const std::vector<std::string> args(tokens.begin() + 1, tokens.end());
@@ -222,6 +238,13 @@ Config LoadConfig(const char* path) {
             config.warnings.push_back("line " + std::to_string(lineNumber) + ": " + message);
         };
         auto expect = [&](const std::string& what) { warn(key + " expects " + what + " (got " + got + "); default kept."); };
+        if (unclosedQuote) { warn("missing closing \" quote; line ignored."); continue; }
+        // A repeated setting is easy to miss in a long file under time pressure, so say which line counts.
+        if (std::find(std::begin(kSettingKeys), std::end(kSettingKeys), key) != std::end(kSettingKeys)) {
+            if (const auto it = settingLines.find(key); it != settingLines.end())
+                warn(key + " is also set on line " + std::to_string(it->second) + "; the last valid line is used.");
+            settingLines[key] = lineNumber;
+        }
 
         if (key == "fullscreen") {
             if (const auto v = ParseBool(args.size() == 1 ? args[0] : "")) config.fullscreen = *v; else expect("true or false");
@@ -261,6 +284,12 @@ Config LoadConfig(const char* path) {
         } else if (key == "process") {
             std::string error;
             if (std::optional<ProcessInfo> process = ParseProcess(args, error)) {
+                if (process->cpuPct > 100.0f) {
+                    char cpu[32];
+                    std::snprintf(cpu, sizeof cpu, "%g", process->cpuPct);
+                    warn("process \"" + process->name + "\": CPU " + cpu + "% is over 100, so 100% is shown.");
+                    process->cpuPct = 100.0f;
+                }
                 if (!customProcesses) config.processes.clear();  // the first process line replaces the defaults
                 customProcesses = true;
                 config.processes.push_back(std::move(*process));

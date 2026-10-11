@@ -7,7 +7,9 @@ rem   build debug        debug build (console window + symbols) -> build\debug\c
 rem   build debug run    debug build, then launch it
 rem   build clean        delete the build folder (add other options to rebuild)
 setlocal
-cd /d "%~dp0"
+rem Remember this script's folder now: "shift" below also moves the script-name parameter.
+set "ROOT=%~dp0"
+cd /d "%ROOT%"
 
 set "CONFIG=release"
 set "RUN="
@@ -39,7 +41,7 @@ if not errorlevel 1 (echo [build] %OUT%\csopesy.exe is up to date & goto run)
 
 rem Load the MSVC x64 environment unless cl.exe is already on PATH.
 where cl >nul 2>nul || call tools\vsdev.cmd rem
-cd /d "%~dp0"
+cd /d "%ROOT%"
 where cl >nul 2>nul || (echo [build] cl.exe not found. Install Visual Studio Build Tools with "Desktop development with C++". & exit /b 1)
 rem Use the link.exe beside cl.exe: Git's usr\bin also has a "link" that can come first on PATH.
 set "MSVC_BIN="

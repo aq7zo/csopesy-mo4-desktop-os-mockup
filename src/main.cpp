@@ -50,14 +50,19 @@ int main(int argc, char** argv) {
         glfwSetWindowPos(window, monitorX, monitorY);
     } else {
         // Normal resizable window; the close veto below still makes its X button do nothing.
-        const int width = std::min(config.windowWidth, mode->width);
-        const int height = std::min(config.windowHeight, mode->height);
-        window = glfwCreateWindow(width, height, "CSOPESY OS", nullptr, nullptr);
+        // Fit it, title bar and borders included, inside the work area (above the Windows taskbar).
+        int workX = 0, workY = 0, workW = 0, workH = 0;
+        glfwGetMonitorWorkarea(monitor, &workX, &workY, &workW, &workH);
+        window = glfwCreateWindow(std::min(config.windowWidth, workW), std::min(config.windowHeight, workH),
+                                  "CSOPESY OS", nullptr, nullptr);
         if (!window) { glfwTerminate(); return 1; }
         int left = 0, top = 0, right = 0, bottom = 0;
         glfwGetWindowFrameSize(window, &left, &top, &right, &bottom);
-        glfwSetWindowPos(window, monitorX + left + (mode->width - width - left - right) / 2,
-                         monitorY + std::max(top, top + (mode->height - height - top - bottom) / 2));
+        const int width = std::min(config.windowWidth, workW - left - right);
+        const int height = std::min(config.windowHeight, workH - top - bottom);
+        glfwSetWindowSize(window, width, height);
+        glfwSetWindowPos(window, workX + left + (workW - left - right - width) / 2,
+                         workY + top + (workH - top - bottom - height) / 2);
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);

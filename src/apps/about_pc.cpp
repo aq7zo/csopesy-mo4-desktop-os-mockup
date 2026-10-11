@@ -1,4 +1,5 @@
 #include "shell.h"
+#include <cstdio>
 
 namespace csopesy {
 namespace {
@@ -7,7 +8,7 @@ struct Spec { const char* key; const char* value; };
 constexpr Spec kSpecs[] = {
     {"Device name", "CSOPESY-M04"},
     {"Processor", "Virtual CPU @ 3.20 GHz (8 cores)"},
-    {"Installed RAM", "16.0 GB"},
+    {"Installed RAM", nullptr},  // from total-memory-mb, so it matches Task Manager's Memory %
     {"System type", "64-bit operating system, x64-based processor"},
     {"OS build", "CSOPESY OS 0.4 (Build 2026.10)"},
     {"Registered to", "CSOPESY Student"},
@@ -22,12 +23,14 @@ void DrawAboutPc(ShellState& shell, bool* open) {
     ImGui::TextDisabled("Desktop shell mockup - Dear ImGui %s", IMGUI_VERSION);
     ImGui::SeparatorText("Device specifications");
     if (ImGui::BeginTable("specs", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+        char ram[32];
+        std::snprintf(ram, sizeof ram, "%.1f GB", shell.config.totalMemoryMb / 1024.0f);
         for (const Spec& spec : kSpecs) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::TextDisabled("%s", spec.key);
             ImGui::TableSetColumnIndex(1);
-            ImGui::TextUnformatted(spec.value);
+            ImGui::TextUnformatted(spec.value != nullptr ? spec.value : ram);
         }
         ImGui::EndTable();
     }
@@ -35,7 +38,7 @@ void DrawAboutPc(ShellState& shell, bool* open) {
     ImGui::ProgressBar(0.62f, ImVec2(-FLT_MIN, 0), "Local Disk (C:)  297 GB used of 476 GB");
     ImGui::ProgressBar(0.18f, ImVec2(-FLT_MIN, 0), "Data (D:)  168 GB used of 931 GB");
     ImGui::SeparatorText("Configuration");
-    if (shell.config.sourcePath.empty()) ImGui::TextDisabled("Built-in defaults (config.txt not found)");
+    if (shell.config.sourcePath.empty()) ImGui::TextDisabled("No config file loaded: built-in defaults");
     else ImGui::TextWrapped("Loaded from %s", shell.config.sourcePath.c_str());
     ImGui::End();
 }

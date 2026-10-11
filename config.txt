@@ -3,6 +3,7 @@
 # Colours: #RRGGBB, R G B (0-255), or a name: black white gray silver red maroon orange yellow gold
 #          olive lime green teal cyan skyblue blue navy indigo purple violet magenta pink brown
 # Mistakes don't crash anything: a "Config warnings" window lists them and the default is used.
+# If a setting appears twice, the last valid line is used (and a warning says so).
 
 # --- Window ---
 fullscreen           true         # true = borderless full screen, false = normal resizable window
@@ -12,8 +13,8 @@ ui-scale             1.0          # text and UI size multiplier, 0.5 to 3.0
 
 # --- Desktop ---
 wallpaper-style      gradient     # gradient or solid
-wallpaper-color      #162446      # solid colour, or the gradient's start colour (navy)
-wallpaper-color-2    #562662      # the gradient's end colour (purple)
+wallpaper-color      #162446      # solid colour, or the gradient's start colour (default: dark navy)
+wallpaper-color-2    #562662      # the gradient's end colour (default: dark purple)
 wallpaper-direction  vertical     # vertical (top to bottom) or horizontal (left to right)
 wallpaper-pattern    dots         # none, dots, grid, stripes or checker
 clock-corner         top-right    # top-left, top-right, bottom-left or bottom-right
@@ -27,8 +28,8 @@ taskbar-position     bottom       # top or bottom
 total-memory-mb      16384        # installed memory; the Memory header shows usage as a % of this
 # process "Name"  CPU-%  Memory-MB  [Disk-MB/s]  [Network-Mbps]  [app | background | suspended]
 # The first process line replaces the built-in list. Rows named like a taskbar app (Task Manager,
-# File Explorer, About This PC) show only while that window is open; "app" rows always show under
-# Apps; all other rows are background processes.
+# File Explorer, About This PC) show only while that window is open, and an open taskbar app with
+# no row shows 0% / 0 MB; "app" rows always show under Apps; all other rows are background processes.
 process "CSOPESY Shell"                   3.2  182.4  0.1  0.0  app
 process "Task Manager"                    1.1   41.7
 process "File Explorer"                   0.4   63.2  0.2
