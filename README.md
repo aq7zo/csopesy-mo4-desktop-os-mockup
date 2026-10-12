@@ -10,13 +10,30 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
 ![Toolchain](https://img.shields.io/badge/MSVC-VS%202026-5C2D91?logo=visualstudio&logoColor=white)
 
-[Features](#features) • [Getting started](#getting-started) • [Make targets](#make-targets) • [Configuration](#configuration) • [Project structure](#project-structure)
+[Group members](#group-members) • [Entry point](#entry-point) • [Getting started](#getting-started) • [Using the shell](#using-the-shell) • [Configuration](#configuration) • [Project structure](#project-structure)
 
 ![CSOPESY OS desktop with Task Manager, File Explorer and About This PC open](docs/screenshot.png)
 
 </div>
 
 Windows, macOS and Android all have a compositor that draws the desktop and manages windows every frame. CSOPESY OS has its own compositor too, built on **GLFW + OpenGL 3 + Dear ImGui**. It isn't a working OS. It's a real-time graphical shell that shows how to build a desktop in immediate-mode UI.
+
+## Group members
+
+- Andrea Gayle Garcia
+- Benette Enzo Campo
+- Jack Owen Morgan
+- Jeroen Ralph Tenorio
+
+## Entry point
+
+The `main` function is in [`src/main.cpp`](src/main.cpp):
+
+```cpp
+int main(int argc, char** argv)
+```
+
+It loads `config.txt`, opens the window, then runs the compositor loop, which draws the desktop, then the app windows, then the taskbar, every frame.
 
 ## Features
 
@@ -36,13 +53,14 @@ Windows, macOS and Android all have a compositor that draws the desktop and mana
 
 | Tool | Notes |
 |---|---|
-| [Visual Studio 2026](https://visualstudio.microsoft.com/) (Community or Build Tools) | Install the **Desktop development with C++** workload (MSVC x64 + Windows SDK). |
-| [GNU make](https://community.chocolatey.org/packages/make) | For example `choco install make`. |
-| [VS Code](https://code.visualstudio.com/) + the [C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) | Optional. Lets you build with Ctrl+Shift+B and debug with F5. |
+| Windows 10 or 11 (x64) | |
+| [Visual Studio 2022 or newer](https://visualstudio.microsoft.com/) (Community or Build Tools) | Install the **Desktop development with C++** workload (MSVC x64 + Windows SDK). Developed with VS 2026. |
+| [VS Code](https://code.visualstudio.com/) + the [C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) | Optional. Lets you build and run from the IDE with F5. |
+| [GNU make](https://community.chocolatey.org/packages/make) | Optional. `build.cmd` does the same build without it. Install with `choco install make`, for example. |
 
 Everything else ships with the repo: Dear ImGui sources and the prebuilt GLFW library are in `vendor/`.
 
-### Build and run
+### Get the code
 
 ```bash
 git clone https://github.com/aq7zo/csopesy-mo4-desktop-os-mockup.git
@@ -52,19 +70,43 @@ git clone https://github.com/aq7zo/csopesy-mo4-desktop-os-mockup.git
 cd csopesy-mo4-desktop-os-mockup
 ```
 
+> [!IMPORTANT]
+> The app opens full-screen (unless `config.txt` says `fullscreen false`) and can only be closed with the red **PWR** button, top-left by default. See [Shutting down](#shutting-down).
+
+### Run from VS Code
+
+1. **File → Open Folder…** and choose the project folder.
+2. Open **Run and Debug** (Ctrl+Shift+D) and choose **Run CSOPESY (release)**.
+3. Press **F5**. It builds the program if the code changed, then starts it.
+
+**Run CSOPESY (release)** has no console window, so use it for demos and quiz videos. **Debug CSOPESY** runs the debug build in the debugger, with a console window for error messages.
+
+The workspace also includes build tasks. They call `build.cmd` (below), so they don't need make, and they skip the build when `src\` hasn't changed:
+
+- **Ctrl+Shift+B** runs a release build (`build` task).
+- **Terminal → Run Task** has `build debug`, `run`, `clean` and `rebuild`.
+
+### Run from a terminal
+
+`build.cmd` builds with plain `cl` and `link`, so you don't need GNU make. It finds your Visual Studio install by itself and works from cmd, PowerShell or the VS Code terminal. In PowerShell, type `.\build` instead of `build`.
+
+| Command | What it does |
+|---|---|
+| `build` | Release build → `build\release\csopesy.exe` |
+| `build run` | Release build if needed, then launches it |
+| `build debug` | Debug build with a console window and symbols → `build\debug\csopesy.exe` |
+| `build debug run` | Debug build if needed, then launches it |
+| `build clean` | Deletes the `build\` folder. Add other options to rebuild, for example `build clean run` |
+
+It only rebuilds when something in `src\` has changed since the last build. Dear ImGui is compiled once per config, so a rebuild takes a few seconds.
+
+### Build with make
+
+GNU make gives the same builds. `tools\vsdev.cmd` finds your Visual Studio install, loads the MSVC x64 environment and then runs the command you give it, so `make` works from any terminal:
+
 ```bash
 tools\vsdev.cmd make run
 ```
-
-`tools\vsdev.cmd` finds your Visual Studio install, loads the MSVC x64 environment and then runs the command you give it. That means `make` works from any terminal: PowerShell, cmd or the VS Code terminal.
-
-> [!TIP]
-> If you're already in a **Developer PowerShell for VS 2026** or **x64 Native Tools Command Prompt**, you can skip the wrapper and run `make` directly.
-
-> [!IMPORTANT]
-> The app opens full-screen (unless `config.txt` says `fullscreen false`) and can only be closed with the red **PWR** button, top-left by default. If it ever stops responding, end `csopesy.exe` from the real Windows Task Manager (Ctrl+Shift+Esc).
-
-## Make targets
 
 | Command | What it does |
 |---|---|
@@ -75,39 +117,30 @@ tools\vsdev.cmd make run
 | `make clean` | Deletes the `build/` folder |
 | `make rebuild` | Clean, then a full release build |
 
-Prefix each command with `tools\vsdev.cmd` unless you're already in a VS developer shell, for example `tools\vsdev.cmd make rebuild`.
+Prefix each command with `tools\vsdev.cmd`, for example `tools\vsdev.cmd make rebuild`.
+
+> [!TIP]
+> If you're already in a **Developer PowerShell for VS** or **x64 Native Tools Command Prompt**, you can skip the wrapper and run `make` directly.
 
 > [!NOTE]
 > The debug build opens a console window, and pressing Ctrl+C there ends the app. **Use the release build for demos**, so PWR really is the only way out.
 
-### Building from VS Code
-
-The workspace already includes the tasks and launch settings. The tasks call `build.cmd` (below), so they don't need make, and they skip the build when `src\` hasn't changed:
-
-- **Ctrl+Shift+B** runs a release build (`build` task).
-- **F5** builds if needed and starts the configuration chosen in Run and Debug. **Run CSOPESY (release)** has no console window, so use it for demos and quiz videos. **Debug CSOPESY** runs the debug build in the debugger.
-- **Terminal → Run Task** has `build debug`, `run`, `clean` and `rebuild`.
-
-### Building without make
-
-`build.cmd` does the same build with plain `cl` and `link`, so you don't need GNU make. Like `tools\vsdev.cmd`, it finds Visual Studio by itself. In PowerShell, type `.\build` instead of `build`.
-
-| Command | What it does |
-|---|---|
-| `build` | Release build → `build\release\csopesy.exe` |
-| `build run` | Release build, then launches it |
-| `build debug` | Debug build with a console window and symbols → `build\debug\csopesy.exe` |
-| `build debug run` | Debug build, then launches it |
-| `build clean` | Deletes the `build\` folder. Add other options to rebuild, for example `build clean run` |
-
-Like `make`, it only rebuilds when something in `src\` has changed since the last build. Dear ImGui is compiled once per config, so a rebuild takes a few seconds.
-
 > [!WARNING]
-> If the build succeeds but launching fails with **Access is denied**, your antivirus is blocking the newly built, unsigned `csopesy.exe`. Endpoint products with zero-trust application control, such as WatchGuard Endpoint Security, block each new build until their cloud scan clears it. In testing, that took between 1 and 20 minutes. Wait and try again. A cleared exe keeps working, and `build run` won't replace it unless `src\` changes. To avoid the wait, ask whoever manages the antivirus to allow the project's `build\` folder.
+> If the build succeeds but launching fails with **Access is denied**, your antivirus is blocking the newly built, unsigned `csopesy.exe`. Endpoint products with zero-trust application control, such as WatchGuard Endpoint Security, block each new build until their cloud scan clears it. In testing, that took between 1 and 20 minutes. Wait and try again. A cleared exe keeps working, and `build run` won't replace it unless `src\` changes. Editing `config.txt` never rebuilds the program, so it never triggers this. To avoid the wait, ask whoever manages the antivirus to allow the project's `build\` folder.
+
+## Using the shell
+
+The taskbar icons are, left to right: **About This PC**, **File Explorer** and **Task Manager**. Click one to open that app. A bar under an icon means the app is open.
+
+Task Manager lists the open apps under **Apps** and the dummy processes from `config.txt` under **Background processes**. Click a column header to sort. Select a row and press **End task** to close that app or hide that dummy process.
+
+### Shutting down
+
+Click the red **PWR** button, then **Shut down**. This is the only way out: Alt+F4, the window's X button and the Windows "Close window" command are ignored on purpose. If the app ever stops responding, end `csopesy.exe` from the real Windows Task Manager (Ctrl+Shift+Esc).
 
 ## Configuration
 
-The quiz rules say to change only the parameters and not recompile, so every value that can vary is read from [`config.txt`](config.txt) when the program starts. Edit a value, save, and run again. Each line is `key value`, and `#` starts a comment. You can also pass another file as the first argument: `csopesy.exe my-test.txt`.
+The quiz rules say to change only the parameters and not recompile, so every value that can vary is read from [`config.txt`](config.txt) in the project folder when the program starts. Edit a value, save, and run again. Each line is `key value`, and `#` starts a comment. You can also pass another file as the first argument: `csopesy.exe my-test.txt`.
 
 | Key | Values (default first) |
 |---|---|
@@ -115,14 +148,24 @@ The quiz rules say to change only the parameters and not recompile, so every val
 | `window-width`, `window-height` | pixels (1280, 720), used when not full screen |
 | `ui-scale` | 0.5 to 3.0 (1.0), size of text and UI |
 | `wallpaper-style` | `gradient` \| `solid` |
-| `wallpaper-color`, `wallpaper-color-2` | `#RRGGBB`, `R G B` or a colour name (defaults `#162446` and `#562662`, a dark navy → purple) |
+| `wallpaper-color`, `wallpaper-color-2` | `#RRGGBB`, `R G B` or a colour name (defaults `#162446` and `#562662`, a dark navy → purple gradient) |
 | `wallpaper-direction` | `vertical` \| `horizontal` |
 | `wallpaper-pattern` | `dots` \| `none` \| `grid` \| `stripes` \| `checker` |
 | `clock-corner`, `power-corner` | `top-right`, `top-left`, `bottom-left`, `bottom-right` (clock top-right, PWR top-left) |
 | `clock-format` | `12` \| `24` |
 | `taskbar-position` | `bottom` \| `top` |
 | `total-memory-mb` | 16384, the base for the Task Manager Memory % |
-| `process "Name" cpu mem [disk] [net] [app\|background\|suspended]` | one Task Manager row; the first one replaces the built-in list, and an open taskbar app with no row shows 0 |
+| `process "Name" CPU% Memory-MB [Disk-MB/s] [Network-Mbps] [app\|background\|suspended]` | One Task Manager row (dummy values); repeat for more rows. The first `process` line replaces the built-in list, and an open taskbar app with no row shows 0. |
+
+For example, a solid red wallpaper, a 24-hour clock in the bottom-left corner and the taskbar on top:
+
+```
+wallpaper-style   solid
+wallpaper-color   red
+clock-corner      bottom-left
+clock-format      24
+taskbar-position  top
+```
 
 A mistake never crashes the program. A **Config warnings** window lists each bad line, and that setting keeps its default. If a setting appears twice, the last valid line is used and the window says so.
 
@@ -131,7 +174,7 @@ A mistake never crashes the program. A **Config warnings** window lists each bad
 ```
 csopesy-mo4-desktop-os-mockup/
 ├─ src/
-│  ├─ main.cpp               # GLFW/OpenGL/ImGui setup and the compositor frame loop
+│  ├─ main.cpp               # entry point: GLFW/OpenGL/ImGui setup and the compositor frame loop
 │  ├─ shell.h                # ShellState, AppWindow, Draw* declarations
 │  ├─ config.h / config.cpp  # reads config.txt into Config (quiz parameters)
 │  ├─ desktop.cpp            # wallpaper, clock, PWR button and shutdown dialog
@@ -142,17 +185,11 @@ csopesy-mo4-desktop-os-mockup/
 │     └─ task_manager.cpp    # Task Manager (dummy process data)
 ├─ vendor/                   # Dear ImGui 1.92.9b sources, GLFW 3.4 prebuilt lib
 ├─ tools/vsdev.cmd           # loads the MSVC environment, then runs a command
-├─ docs/                     # implementation plan and requirements checklist
+├─ docs/screenshot.png       # README screenshot
 ├─ .vscode/                  # build tasks, debugger launch config, IntelliSense
 ├─ build.cmd                 # build without make: build [debug] [run] [clean]
 ├─ config.txt                # runtime parameters (edit these, not the code)
-├─ README.txt                # submission readme: members, how to run, entry point
 └─ Makefile
 ```
 
 Each frame draws three layers in order: **desktop**, then **app windows**, then **taskbar**. Every app is one `.cpp` file that exposes a `Draw<App>(bool* open)` function and a `Draw<App>Icon(...)` function, registered in `ShellState::apps` in [`src/shell.h`](src/shell.h).
-
-## Documentation
-
-- [`docs/PLAN.md`](docs/PLAN.md): implementation plan, naming conventions and notes on where the code differs from the plan.
-- [`docs/CHECKLIST.md`](docs/CHECKLIST.md): every spec requirement, mapped to the code that implements it and how it was verified.
